@@ -1,7 +1,7 @@
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from quiz_handler import handle_quiz_command
-from doubt_solver import handle_doubt_command
+from doubt_solver import handle_doubt_command, solve_doubt
 
 def register_handlers(app: Client):
 
@@ -17,6 +17,6 @@ def register_handlers(app: Client):
     async def doubt_handler(client, message: Message):
         await handle_doubt_command(client, message)
 
-    def register_handlers(dp: Dispatcher):
-    dp.register_message_handler(...)
-
+    @app.on_message(filters.text & filters.private)
+    async def fallback_doubt_handler(client, message: Message):
+        await solve_doubt(client, message)

@@ -4,9 +4,13 @@ import asyncio
 from pyrogram import Client
 from config import API_ID, API_HASH, BOT_TOKEN
 from handlers import register_handlers
+from pyrogram.idle import idle  # ✅ MUST HAVE
 
 # Telegram Bot
 app_bot = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+
+# Register message handlers
+register_handlers(app_bot)
 
 # FastAPI app (for Render)
 app = FastAPI()
@@ -18,7 +22,7 @@ def home():
 async def run_bot():
     await app_bot.start()
     print("Bot started.")
-    await idle()  # optional: from pyrogram import idle
+    await idle()
 
 @app.on_event("startup")
 async def startup_event():

@@ -4,7 +4,8 @@ import asyncio
 from pyrogram import Client
 from config import API_ID, API_HASH, BOT_TOKEN
 from handlers import register_handlers
-from pyrogram.idle import idle  # ✅ MUST HAVE
+from pyrogram.idle import idle
+  # ✅ MUST HAVE
 
 # Telegram Bot
 app_bot = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)

@@ -16,3 +16,7 @@ def register_handlers(app: Client):
     @app.on_message(filters.command("ask"))
     async def doubt_handler(client, message: Message):
         await handle_doubt_command(client, message)
+
+    def register_handlers(dp: Dispatcher):
+    dp.register_message_handler(...)
+

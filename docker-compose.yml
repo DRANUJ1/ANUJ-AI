@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  anuj-bot:
+    build: .
+    container_name: anuj-bot
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=production
+    env_file:
+      - .env
+    volumes:
+      - ./database:/app/database
+      - ./files:/app/files
+      - ./logs:/app/logs
+    networks:
+      - anuj-network
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sqlite3; conn = sqlite3.connect('database/anuj_bot.db'); conn.close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: anuj-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - anuj-network
+    command: redis-server --appendonly yes
+
+  # Optional: Database backup service
+  backup:
+    image: alpine:latest
+    container_name: anuj-backup
+    restart: "no"
+    volumes:
+      - ./database:/app/database
+      - ./backups:/app/backups
+    command: |
+      sh -c "
+        mkdir -p /app/backups
+        cp /app/database/anuj_bot.db /app/backups/anuj_bot_backup_$$(date +%Y%m%d_%H%M%S).db
+        find /app/backups -name '*.db' -mtime +7 -delete
+      "
+    networks:
+      - anuj-network
+
+volumes:
+  redis_data:
+
+networks:
+  anuj-network:
+    driver: bridge
+

@@ -6,30 +6,27 @@ A comprehensive Telegram bot with advanced features
 
 import os
 import logging
-import sqlite3
 import json
 import asyncio
-import aiohttp
-import io
 import random
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
-import re
+from datetime import datetime
+from typing import Dict
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
+# Third-party libraries
+import requests
+from telegram import Update, InputFile
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, filters, 
-    ContextTypes, CallbackQueryHandler, ConversationHandler
+    ContextTypes
 )
 from telegram.constants import ParseMode
-
-import PyPDF2
-from PIL import Image, ImageDraw, ImageFont
-import openai
 from openai import OpenAI
+from dotenv import load_dotenv
 
-# Import custom modules
-from config.settings import *
+# Custom modules (Ensure these files exist in the specified paths)
+# NOTE: I am assuming the structure of your custom modules.
+# You might need to adjust imports if your file structure is different.
+from config.settings import USE_MONGODB, DATABASE_PATH, MONGODB_CONNECTION_STRING
 from database.db_manager import DatabaseManager
 from utils.file_manager import FileManager
 from utils.quiz_generator import QuizGenerator
@@ -44,17 +41,21 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class AnujBot:
-    def __init__(self):
-        # Initialize database manager with MongoDB connection
-        from config.settings import USE_MONGODB, DATABASE_PATH
-        if USE_MONGODB:
-            self.db_manager = DatabaseManager(DATABASE_PATH)
-        else:
-            self.db_manager = DatabaseManager()
+    def __init__(self, bot_token: str, openai_api_key: str):
+        # Initialize API clients and managers
+        self.openai_client = OpenAI(api_key=openai_api_key)
+        
+        # Initialize custom modules
+        self.db_manager = DatabaseManager(db_path=DATABASE_PATH if not USE_MONGODB else MONGODB_CONNECTION_STRING, use_mongodb=USE_MONGODB)
         self.image_solver = ImageSolver()
         self.context_manager = ContextManager()
-        self.openai_client = OpenAI()
-       
+        self.file_manager = FileManager()
+        self.quiz_generator = QuizGenerator()
+        
+        # This will be set after the Application object is created
+        self.application: Optional[Application] = None
+        self.bot_token = bot_token
+
         # Bot personality responses
         self.surprise_links = [
             "🎉 https://youtu.be/dQw4w9WgXcQ",
@@ -65,22 +66,23 @@ class AnujBot:
         
         self.best_wishes_responses = [
             "🌟 Best wishes to you too! Aur koi doubt hai? Puchte raho, main yahan hun!",
-            "✨ Thank you! Koi aur question hai? Don\\\'t suffer in silence, ask away!",
+            "✨ Thank you! Koi aur question hai? Don't suffer in silence, ask away!",
             "🎉 Best wishes! Aur doubts lao, main solve kar dunga!"
         ]
 
-    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE ):
         """Start command handler"""
-        user_id = update.effective_user.id
-        user_name = update.effective_user.first_name
+        user = update.effective_user
+        user_id = user.id
+        user_name = user.first_name
         
-        # Initialize user in database (async)
+        # Initialize user in database
         await self.db_manager.add_user(user_id, user_name)
         
         welcome_message = f"""
-🤖 **Namaste {user_name}! Main Anuj hun, aapka Personal Assistant!**
+🤖 <b>Namaste {user_name}! Main Anuj hun, aapka Personal Assistant!</b>
 
-🌟 **Main kya kar sakta hun:**
+🌟 <b>Main kya kar sakta hun:</b>
 • 📚 Notes aur files manage kar sakta hun
 • 🧠 Quiz generate kar sakta hun PDF se
 • 🖼️ Images me doubts solve kar sakta hun
@@ -88,64 +90,63 @@ class AnujBot:
 • 📝 Har user ka individual memory rakhta hun
 • 🎯 Auto-filter ki tarah kaam karta hun
 
-**Commands:**
+<b>Commands:</b>
 /start - Bot start karne ke liye
 /help - Help menu
 /quiz - Quiz generate karne ke liye
 /notes - Notes search karne ke liye
 /memory - Apna chat history dekhne ke liye
 
-**Bas file bhejo ya question pucho, main samajh jaunga! 😊**
+<b>Bas file bhejo ya question pucho, main samajh jaunga! 😊</b>
         """
-        
         await update.message.reply_text(welcome_message, parse_mode=ParseMode.HTML)
 
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Help command handler"""
         user_id = update.effective_user.id
-        help_text = f"""
-🤖 **Anuj Bot Help Menu**
+        help_text = """
+🤖 <b>Anuj Bot Help Menu</b>
 
-**📚 File Management:**
+<b>📚 File Management:</b>
 • PDF bhejo → Quiz banaunga
 • Images bhejo → Doubts solve karunga
 • "send me notes" bolo → Files forward karunga
 
-**🧠 Quiz Features:**
+<b>🧠 Quiz Features:</b>
 • PDF upload karo → Auto quiz generate hoga
 • Group me add karo → Quiz conduct karunga
 • Multiple choice questions banaunga
 
-**🖼️ Image Doubt Solving:**
+<b>🖼️ Image Doubt Solving:</b>
 • Math problems ki images bhejo
 • Handwriting style me solution dunga
 • Copy pe solve kiya hua lagega
 
-**💭 Smart Features:**
+<b>💭 Smart Features:</b>
 • Context samajhta hun
 • Individual memory rakhta hun
 • Auto-filter ki tarah kaam karta hun
 • Personal assistant ban jata hun
 
-**Commands:**
+<b>Commands:</b>
 /start - Bot start karne ke liye
 /help - Help menu
 /quiz - Quiz generate karne ke liye
 /notes - Notes search karne ke liye
 /memory - Apna chat history dekhne ke liye
 
-**Special:**
+<b>Special:</b>
 • "Thanks" bolo to get a surprise!
 • "Best wishes" bolo to get motivation!
 
-**Don\\\"t suffer in silence, ask Anuj! 😊**
+<b>Don't suffer in silence, ask Anuj! 😊</b>
 
-**Group Features:**
+<b>Group Features:</b>
 • Group me add karo quiz ke liye
 • Members ka record rakhta hun
 • Scheduled quizzes kar sakta hun
 
-**Bas message karo, main samajh jaunga! 😊**
+<b>Bas message karo, main samajh jaunga! 😊</b>
         """
         await update.message.reply_text(help_text, parse_mode=ParseMode.HTML)
         await self.db_manager.add_message(user_id, "/help", "user")
@@ -155,58 +156,58 @@ class AnujBot:
         """Handle all text messages with context understanding"""
         user_id = update.effective_user.id
         user_name = update.effective_user.first_name
-        message_text = update.message.text.lower()
+        message_text = update.message.text
         
-        # Store message in user history
-self.db_manager.add_message(user_id, message_text, 'user')
+        # Store user message in history
+        await self.db_manager.add_message(user_id, message_text, 'user')
 
-# Context-based responses
-if any(word in message_text for word in ['thanks']):
-    surprise_link = random.choice(self.surprise_links)
-    response = f"🎉 **Welcome {user_name}!**\n\nYahan hai aapke liye ek surprise: {surprise_link}\n\n✨ Aur koi doubt hai? Puchte raho!"
-    await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
+        # Context-based responses
+        lower_message_text = message_text.lower()
+        if any(word in lower_message_text for word in ['thanks', 'thank you']):
+            surprise_link = random.choice(self.surprise_links)
+            response = f"🎉 **Welcome {user_name}!**\n\nYahan hai aapke liye ek surprise: {surprise_link}\n\n✨ Aur koi doubt hai? Puchte raho!"
+            await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
+            await self.db_manager.add_message(user_id, response, 'bot')
 
-elif any(word in message_text for word in ['best wishes']):
-    response = random.choice(self.best_wishes_responses)
-    await update.message.reply_text(response)
+        elif 'best wishes' in lower_message_text:
+            response = random.choice(self.best_wishes_responses)
+            await update.message.reply_text(response)
+            await self.db_manager.add_message(user_id, response, 'bot')
 
-elif any(word in message_text for word in ['notes']):
-    await self.send_relevant_files(update, context, message_text)
+        elif 'notes' in lower_message_text:
+            await self.send_relevant_files(update, context, message_text)
 
-elif any(word in message_text for word in ['doubt']):
-    response = (
-        "🤔 **Doubt hai? Perfect!**\n\n"
-        "📸 Image bhejo agar visual problem hai\n"
-        "📝 Text me likho agar theory doubt hai\n"
-        "📚 PDF bhejo agar quiz chahiye\n\n"
-        "**Aur doubts pucho, suffering karte rahne se kya fayda! 😊**"
-    )
-    await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
+        elif 'doubt' in lower_message_text:
+            response = (
+                "🤔 **Doubt hai? Perfect!**\n\n"
+                "📸 Image bhejo agar visual problem hai\n"
+                "📝 Text me likho agar theory doubt hai\n"
+                "📚 PDF bhejo agar quiz chahiye\n\n"
+                "**Aur doubts pucho, suffering karte rahne se kya fayda! 😊**"
+            )
+            await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
+            await self.db_manager.add_message(user_id, response, 'bot')
 
-else:
-    # General context understanding
-    await self.handle_general_query(update, context, message_text)
+        else:
+            # General context understanding
+            await self.handle_general_query(update, context, message_text)
 
+    async def handle_general_query(self, update: Update, context: ContextTypes.DEFAULT_TYPE, query: str):
+        """Handle general queries with AI assistance"""
+        user_id = update.effective_user.id
 
-async def handle_general_query(self, update: Update, context: ContextTypes.DEFAULT_TYPE, query: str):
-    """Handle general queries with AI assistance"""
-    user_id = update.effective_user.id
+        # Get user context
+        user_history = await self.db_manager.get_user_history(user_id, limit=5)
+        context_prompt = f"User history: {user_history}\n\nCurrent query: {query}"
 
-    # Get user context
-    user_history = self.db_manager.get_user_history(user_id, limit=5)
-    context_prompt = f"User history: {user_history}\n\nCurrent query: {query}"
-
-    try:
-        response = await self.get_ai_response(context_prompt)
-        await update.message.reply_text(f"🤖 **Anuj:** {response}")
-
-        # Store bot response
-        self.db_manager.add_message(user_id, response, 'bot')
-
-    except Exception as e:
-        logger.error(f"Error in AI response: {e}")
-        await update.message.reply_text("🤖 **Anuj:** Samajh gaya! Koi specific doubt hai toh detail me batao. Main help karunga! 😊")
-
+        try:
+            response = await self.get_ai_response(context_prompt)
+            await update.message.reply_text(f"🤖 **Anuj:** {response}")
+            # Store bot response
+            await self.db_manager.add_message(user_id, response, 'bot')
+        except Exception as e:
+            logger.error(f"Error in AI response: {e}")
+            await update.message.reply_text("🤖 **Anuj:** Samajh gaya! Koi specific doubt hai toh detail me batao. Main help karunga! 😊")
 
     async def get_ai_response(self, prompt: str) -> str:
         """Get AI response using OpenAI"""
@@ -227,22 +228,22 @@ async def handle_general_query(self, update: Update, context: ContextTypes.DEFAU
     async def handle_document(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle PDF documents for quiz generation"""
         user_id = update.effective_user.id
+        doc = update.message.document
         
         try:
-            # Download the file
-            file = await update.message.document.get_file()
-            file_path = f"files/{user_id}_{update.message.document.file_name}"
+            file = await doc.get_file()
+            file_path = f"files/{user_id}_{doc.file_name}"
             await file.download_to_drive(file_path)
             
             # Store file info
-            self.file_manager.store_file(user_id, file_path, update.message.document.file_name)
+            await self.file_manager.store_file(user_id, file_path, doc.file_name)
             
             await update.message.reply_text("📚 **PDF received!** Quiz generate kar raha hun... ⏳")
             
             # Generate quiz from PDF
             quiz_data = await self.quiz_generator.generate_from_pdf(file_path)
             
-            if quiz_data:
+            if quiz_data and quiz_data.get('questions'):
                 await self.send_quiz(update, context, quiz_data)
             else:
                 await update.message.reply_text("❌ PDF se quiz generate nahi kar paya. Koi aur file try karo!")
@@ -256,10 +257,11 @@ async def handle_general_query(self, update: Update, context: ContextTypes.DEFAU
         user_id = update.effective_user.id
         
         try:
-            # Download the image
             photo = update.message.photo[-1]  # Get highest resolution
             file = await photo.get_file()
-            file_path = f"files/{user_id}_image_{datetime.now().strftime(\\\\\\'%Y%m%d_%H%M%S\\\\\\\
+            
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            file_path = f"files/{user_id}_image_{timestamp}.jpg"
             await file.download_to_drive(file_path)
             
             await update.message.reply_text("🖼️ **Image received!** Doubt solve kar raha hun... ✏️")
@@ -267,12 +269,17 @@ async def handle_general_query(self, update: Update, context: ContextTypes.DEFAU
             # Solve the image doubt
             solved_image_path = await self.image_solver.solve_doubt(file_path)
             
-            if solved_image_path:
-                # Send solved image
-                with open(solved_image_path, \\\\\\\'rb\\\\\\\
+            if solved_image_path and os.path.exists(solved_image_path):
+                caption_text = """
+✅ <b>Doubt Solved!</b> 📝\n
+Aisa lagta hai jaise copy pe kisi student ne solve kiya ho! 😊\n
+🤔 Aur doubts hai? Bhejo!
+                """
+                with open(solved_image_path, 'rb') as img_file:
                     await update.message.reply_photo(
                         photo=InputFile(img_file),
-                        caption="✅ **Doubt Solved!** 📝\\\\\\\\n\\\\\\\\nAisa lagta hai jaise copy pe kisi student ne solve kiya ho! 😊\\\\\\\\n\\\\\\\\n🤔 Aur doubts hai? Bhejo!"
+                        caption=caption_text,
+                        parse_mode=ParseMode.HTML
                     )
             else:
                 await update.message.reply_text("❌ Image me doubt solve nahi kar paya. Clear image bhejo!")
@@ -283,207 +290,160 @@ async def handle_general_query(self, update: Update, context: ContextTypes.DEFAU
 
     async def send_quiz(self, update: Update, context: ContextTypes.DEFAULT_TYPE, quiz_data: Dict):
         """Send quiz to user"""
-        questions = quiz_data.get(\\\\\\'questions\\\\\\\
+        questions = quiz_data.get('questions', [])
         
         if not questions:
             await update.message.reply_text("❌ Quiz generate nahi hua. PDF me readable text nahi mila!")
             return
             
-        quiz_text = "🧠 **Quiz Generated!**\\\\\\\\n\\\\\\\\n"
+        quiz_text = "🧠 **Quiz Generated!**\n\n"
         
         for i, q in enumerate(questions[:5], 1):  # Limit to 5 questions
-            quiz_text += f"**Q{i}.** {q[\\\\\\\'question\\\\\\\
-            for j, option in enumerate(q[\\\\\\\'options\\\\\\\
-                quiz_text += f"{j}. {option}\\\\\\n\\\\\\\\n"
-            quiz_text += f"**Answer:** {q[\\\\\\\'answer\\\\\\\
+            quiz_text += f"**Q{i}.** {q.get('question', 'N/A')}\n"
+            for j, option in enumerate(q.get('options', [])):
+                quiz_text += f"{j+1}. {option}\n"
+            quiz_text += f"**Answer:** {q.get('answer', 'N/A')}\n\n"
         
         await update.message.reply_text(quiz_text, parse_mode=ParseMode.MARKDOWN)
 
-    async def send_relevant_files(self, update: Update, context: ContextTypes.DEFAULT_TYPE, query: str):
+    async def send_relevant_files(self, update: Update, context: ContextTypes.DEFAULT_TYPE, query: str = ""):
         """Send relevant files based on user query"""
         user_id = update.effective_user.id
         
-        # Get user\\\\\\\'s files
-        user_files = self.file_manager.get_user_files(user_id)
+        user_files = await self.file_manager.get_user_files(user_id)
         
         if not user_files:
-            await update.message.reply_text("📁 **Koi files nahi mili!**\\\\\\\\n\\\\\\\\nPehle kuch PDF ya notes upload karo, phir main forward kar dunga! 😊")
+            await update.message.reply_text("📁 **Koi files nahi mili!**\n\nPehle kuch PDF ya notes upload karo, phir main forward kar dunga! 😊")
             return
             
-        # Simple keyword matching for now
         relevant_files = []
-        query_words = query.split()
-        
-        for file_info in user_files:
-            file_name = file_info[\\\\\\\'filename\\\\\\\
-            if any(word in file_name for word in query_words):
-                relevant_files.append(file_info)
+        if query:
+            query_words = query.lower().split()
+            for file_info in user_files:
+                file_name = file_info.get('filename', '').lower()
+                if any(word in file_name for word in query_words):
+                    relevant_files.append(file_info)
         
         if not relevant_files:
-            relevant_files = user_files[:3]  # Send recent files
+            relevant_files = user_files[:3]  # Send recent files if no match
             
-        files_text = "📚 **Yahan hai aapki files:**\\\\\\\\n\\\\\\\\n"
+        files_text = "📚 **Yahan hai aapki files:**\n\n"
         for i, file_info in enumerate(relevant_files, 1):
-            files_text += f"{i}. {file_info[\\\\\\\'filename\\\\\\\
+            files_text += f"{i}. {file_info.get('filename', 'Unknown File')}\n"
             
         await update.message.reply_text(files_text)
         
-        # Send actual files
         for file_info in relevant_files:
-            try:
-                if os.path.exists(file_info[\\\\\\\'filepath\\\\\\\
-                    with open(file_info[\\\\\\\'filepath\\\\\\\
+            filepath = file_info.get('filepath')
+            if filepath and os.path.exists(filepath):
+                try:
+                    with open(filepath, 'rb') as f:
                         await update.message.reply_document(
-                            document=InputFile(f, filename=file_info[\\\\\\\'filename\\\\\\\
+                            document=InputFile(f, filename=file_info.get('filename'))
                         )
-            except Exception as e:
-                logger.error(f"Error sending file: {e}")
+                except Exception as e:
+                    logger.error(f"Error sending file {filepath}: {e}")
+                    await update.message.reply_text(f"😥 File {file_info.get('filename')} bhejne mein error aa gayi.")
 
     async def memory_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Show user\\\\\\\'s chat history/memory"""
+        """Show user's chat history/memory"""
         user_id = update.effective_user.id
-        history = self.db_manager.get_user_history(user_id, limit=10)
+        history = await self.db_manager.get_user_history(user_id, limit=10)
         
         if not history:
-            await update.message.reply_text("🧠 **Memory khali hai!**\\\\\\\\n\\\\\\\\nAbhi tak koi conversation nahi hui! 😊")
+            await update.message.reply_text("🧠 **Memory khali hai!**\n\nAbhi tak koi conversation nahi hui! 😊")
             return
             
-        memory_text = "🧠 **Aapka Chat Memory:**\\\\\\\\n\\\\\\\\n"
-        for msg in history:
-            sender = "🤖 Anuj" if msg[\\\\\\\'sender\\\\\\\
-            memory_text += f"{sender}: {msg[\\\\\\\'message\\\\\\\
+        memory_text = "🧠 **Aapka Chat Memory:**\n\n"
+        for msg in reversed(history): # Show oldest first
+            sender = "You" if msg.get('sender') == 'user' else "🤖 Anuj"
+            message_content = msg.get('message', '')
+            # Truncate long messages for readability
+            if len(message_content) > 100:
+                message_content = message_content[:100] + "..."
+            memory_text += f"*{sender}:* {message_content}\n"
             
-        await update.message.reply_text(memory_text)
-
+        await update.message.reply_text(memory_text, parse_mode=ParseMode.MARKDOWN)
 
     async def group_quiz_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Group quiz command handler"""
         await update.message.reply_text(
-            "🧠 **Group Quiz!**\\\\\\\\n\\\\\\\\n"
-            "👥 Group me add karo aur quiz start karne ke liye /start_group_quiz bolo.\\\\\\
-"
-            "🏆 Leaderboard dekhne ke liye /leaderboard bolo.\\\\\\
-"
+            "🧠 **Group Quiz!**\n\n"
+            "👥 Group me add karo aur quiz start karne ke liye `/start_group_quiz` bolo.\n"
+            "🏆 Leaderboard dekhne ke liye `/leaderboard` bolo.\n"
             "**Ready to challenge your friends?** 😊"
         )
 
     async def leaderboard_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Leaderboard command handler"""
         await update.message.reply_text(
-            "🏆 **Leaderboard!**\\\\\\\\n\\\\\\\\n"
-            "Abhi tak koi scores nahi hain. Group quiz khelo aur top par aao!\\\\\\\\n"
+            "🏆 **Leaderboard!**\n\n"
+            "Abhi tak koi scores nahi hain. Group quiz khelo aur top par aao!\n"
             "**All the best!** 😊"
         )
 
-    # Group handling methods
     async def handle_group_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Placeholder for handling group messages"""
+        # This function can be expanded to handle group-specific logic
+        logger.info(f"Received a message in group {update.message.chat.title}")
+        # For now, it does nothing to avoid spamming groups.
         pass
 
+    # --- Webhook Methods ---
     def set_webhook(self, webhook_url: str) -> bool:
         """Set webhook URL for the bot"""
         try:
-            import requests
-            url = f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook"
-            data = {
-                \\\\\\\'url\\\\\\\
-                \\\\\\\'allowed_updates\\\\\\\
-            }
-            response = requests.post(url, data=data)
+            url = f"https://api.telegram.org/bot{self.bot_token}/setWebhook"
+            params = {'url': webhook_url, 'allowed_updates': json.dumps(["message", "callback_query"] )}
+            response = requests.get(url, params=params)
             result = response.json()
             
-            if result.get(\\\\\\'ok\\\\\\\
+            if result.get('ok'):
                 logger.info(f"Webhook set successfully to {webhook_url}")
                 return True
             else:
-                logger.error(f"Failed to set webhook: {result}")
+                logger.error(f"Failed to set webhook: {result.get('description')}")
                 return False
-                
         except Exception as e:
             logger.error(f"Error setting webhook: {e}")
             return False
-    
-    def get_webhook_info(self) -> dict:
-        """Get current webhook information"""
-        try:
-            import requests
-            url = f"https://api.telegram.org/bot{BOT_TOKEN}/getWebhookInfo"
-            response = requests.get(url)
-            result = response.json()
-            
-            if result.get(\\\\\\'ok\\\\\\\
-                return result.get(\\\\\\'result\\\\\\\
-            else:
-                logger.error(f"Failed to get webhook info: {result}")
-                return {}
-                
-        except Exception as e:
-            logger.error(f"Error getting webhook info: {e}")
-            return {}
-    
-    def delete_webhook(self) -> bool:
-        """Delete webhook (switch back to polling)"""
-        try:
-            import requests
-            url = f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook"
-            response = requests.post(url)
-            result = response.json()
-            
-            if result.get(\\\\\\'ok\\\\\\\
-                logger.info("Webhook deleted successfully")
-                return True
-            else:
-                logger.error(f"Failed to delete webhook: {result}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Error deleting webhook: {e}")
-            return False
-    
+
     async def process_webhook_update(self, update_data: dict):
-        """Process webhook update from Telegram"""
+        """Process a single update from a webhook"""
+        if not self.application:
+            logger.error("Application not initialized. Cannot process webhook update.")
+            return
         try:
-            # Create Update object from webhook data
-            from telegram import Update
             update = Update.de_json(update_data, self.application.bot)
-            
-            if update:
-                # Process the update through the application
-                await self.application.process_update(update)
-            else:
-                logger.warning("Failed to create Update object from webhook data")
-                
+            await self.application.process_update(update)
         except Exception as e:
             logger.error(f"Error processing webhook update: {e}")
 
 
-if __name__ == "__main__":
-    # Ensure files directory exists
+def main():
+    """Main function to setup and run the bot"""
+    # Ensure 'files' directory exists
     os.makedirs("files", exist_ok=True)
     
-    # Load environment variables
-    from dotenv import load_dotenv
-    load_dotenv(dotenv_path=".env")
+    # Load environment variables from .env file
+    load_dotenv()
 
-    # Get bot token from environment variables
     BOT_TOKEN = os.getenv("BOT_TOKEN")
     if not BOT_TOKEN:
-        logger.error("BOT_TOKEN not found in .env file. Please set it.")
+        logger.error("FATAL: BOT_TOKEN not found in environment variables or .env file.")
         exit(1)
 
-    # Get OpenAI API key from environment variables
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     if not OPENAI_API_KEY:
-        logger.error("OPENAI_API_KEY not found in .env file. Please set it.")
+        logger.error("FATAL: OPENAI_API_KEY not found in environment variables or .env file.")
         exit(1)
-    openai.api_key = OPENAI_API_KEY
 
-    # Get MongoDB connection string from environment variables
-    from config.settings import USE_MONGODB, MONGODB_CONNECTION_STRING, DATABASE_PATH
-    if not USE_MONGODB:
-        logger.warning("MONGODB_CONNECTION_STRING not found in .env file or not a MongoDB string. Using SQLite.")
-
-    anuj_bot = AnujBot()
+    # Initialize bot and application
+    anuj_bot = AnujBot(bot_token=BOT_TOKEN, openai_api_key=OPENAI_API_KEY)
     application = Application.builder().token(BOT_TOKEN).build()
+    
+    # Link the application object to the bot instance for webhook processing
+    anuj_bot.application = application
 
     # Command handlers
     application.add_handler(CommandHandler("start", anuj_bot.start))
@@ -494,12 +454,15 @@ if __name__ == "__main__":
     application.add_handler(CommandHandler("leaderboard", anuj_bot.leaderboard_command))
 
     # Message handlers
-    application.add_handler(MessageHandler(filters.Document.ALL, anuj_bot.handle_document))
-    application.add_handler(MessageHandler(filters.PHOTO, anuj_bot.handle_photo))
+    application.add_handler(MessageHandler(filters.Document.ALL & ~filters.COMMAND, anuj_bot.handle_document))
+    application.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, anuj_bot.handle_photo))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, anuj_bot.handle_message))
+    
+    # Group message handler (optional, can be more specific)
     application.add_handler(MessageHandler(filters.ChatType.GROUPS & ~filters.COMMAND, anuj_bot.handle_group_message))
 
-    # Run the bot until the user presses Ctrl+C
-    logger.info("Bot is now polling for updates...")
+    logger.info("Bot is starting to poll for updates...")
     application.run_polling()
 
+if __name__ == "__main__":
+    main()

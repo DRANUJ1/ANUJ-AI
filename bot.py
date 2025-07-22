@@ -472,6 +472,7 @@ def main():
     logger.info("Bot is starting to poll for updates...")
     application.run_polling()
 
+    async def start_web():
     app = web.AppRunner(web_server())
     await app.setup()
     bind_address = "0.0.0.0"
@@ -479,9 +480,5 @@ def main():
     await site.start()
     await idle()
 
-
-if __name__ == '__main__':
-    try:
-        loop.run_until_complete(start())
-    except KeyboardInterrupt:
-        logging.info('Service Stopped Bye 👋')
+if __name__ == "__main__":
+    asyncio.run(start_web())

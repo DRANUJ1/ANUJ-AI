@@ -12,14 +12,15 @@ import random
 from datetime import datetime
 from typing import Dict
 from aiohttp import web
-
+from flask import Flask, request
+from telegram import Bot, Update
 
 # Third-party libraries
 import requests
 from telegram import Update, InputFile
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, filters, 
-    ContextTypes
+    ContextTypes, Dispatcher
 )
 from telegram.constants import ParseMode
 from openai import OpenAI
@@ -469,5 +470,59 @@ def main():
 
     logger.info("Bot is starting to poll for updates...")
     application.run_polling()
+
+    def __init__(self):
+        # Load environment variables
+        self.TOKEN = os.getenv("BOT_TOKEN")
+        self.WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+
+        # Initialize bot and flask app
+        self.bot = Bot(token=self.TOKEN)
+        self.app = Flask(__name__)
+
+        # Dispatcher to handle updates
+        self.dispatcher = Dispatcher(self.bot, None, workers=4, use_context=True)
+
+        # Set Telegram command/message handlers
+        self._add_handlers()
+
+        # Set Flask routes
+        self._set_routes()
+
+        # Set webhook on bot
+        with self.app.app_context():
+            self.bot.set_webhook(self.WEBHOOK_URL)
+
+    def _add_handlers(self):
+        self.dispatcher.add_handler(CommandHandler("start", self.start))
+        self.dispatcher.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.echo))
+
+    def _set_routes(self):
+        self.app.add_url_rule("/", view_func=self.home)
+        self.app.add_url_rule("/webhook", view_func=self.webhook, methods=["POST"])
+
+    def home(self):
+        return "✅ AnujBot is live via webhook!"
+
+    def webhook(self):
+        update = Update.de_json(request.get_json(force=True), self.bot)
+        self.dispatcher.process_update(update)
+        return "ok"
+
+    def start(self, update, context):
+        update.message.reply_text("👋 Hello! This is AnujBot running via Flask & Webhook (class-based).")
+
+    def echo(self, update, context):
+        update.message.reply_text(f"You said: {update.message.text}")
+
+    def run(self):
+        self.app.run(host="0.0.0.0", port=5000)
+
+# ============================
+# Entry point to run the bot
+# ============================
+if __name__ == "__main__":
+    bot = AnujBot()
+    bot.run()
 
 

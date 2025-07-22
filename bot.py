@@ -421,8 +421,32 @@ if __name__ == "__main__":
     logger.info("Bot is now polling for updates...")
     application.run_polling()
 
-        def set_webhook(self, webhook_url: str) -> bool:
-        # your logic here
+        class AnujBot:
+    def __init__(self):
+        # existing code...
+    
+    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        # existing code...
+    
+    # ... all existing methods ...
+    
+    async def handle_group_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        pass
+    
+    # ✅ Yahan add karo webhook methods:
+    def set_webhook(self, webhook_url: str) -> bool:
+        """Set webhook URL for the bot"""
+        try:
+            import requests
+            # ... webhook code
+        except Exception as e:
+            return False
+    
+    # ... other webhook methods
+
+if __name__ == "__main__":
+    # main code
+
         try:
             import requests
             url = f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook"

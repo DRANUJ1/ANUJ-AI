@@ -472,11 +472,13 @@ def main():
     logger.info("Bot is starting to poll for updates...")
     application.run_polling()
 
-    app = web.AppRunner(await web_server())
+    app = web.AppRunner(web_server())
     await app.setup()
     bind_address = "0.0.0.0"
-    await web.TCPSite(app, bind_address, PORT).start()
+    site = web.TCPSite(app, bind_address, PORT)
+    await site.start()
     await idle()
+
 
 if __name__ == '__main__':
     try:

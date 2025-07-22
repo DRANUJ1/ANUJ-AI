@@ -47,7 +47,8 @@ class AnujBot:
         
         # Initialize custom modules
         # Naya aur sudhara hua code
-        self.db_manager = DatabaseManager(database_path=DATABASE_PATH if not USE_MONGODB else MONGODB_CONNECTION_STRING, use_mongodb=USE_MONGODB)
+        # Naya aur Best Solution
+        self.db_manager = DatabaseManager()
         self.image_solver = ImageSolver()
         self.context_manager = ContextManager()
         self.file_manager = FileManager()
@@ -262,6 +263,7 @@ class AnujBot:
             photo = update.message.photo[-1]  # Get highest resolution
             file = await photo.get_file()
             
+            # Sahi code
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             file_path = f"files/{user_id}_image_{timestamp}.jpg"
             await file.download_to_drive(file_path)

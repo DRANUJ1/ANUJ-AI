@@ -11,6 +11,10 @@ import asyncio
 import random
 from datetime import datetime
 from typing import Dict
+from aiohttp import web
+from plugins import web_server
+from plugins.clone import restart_bots
+
 
 # Third-party libraries
 import requests
@@ -468,5 +472,14 @@ def main():
     logger.info("Bot is starting to poll for updates...")
     application.run_polling()
 
-if __name__ == "__main__":
-    main()
+    app = web.AppRunner(await web_server())
+    await app.setup()
+    bind_address = "0.0.0.0"
+    await web.TCPSite(app, bind_address, PORT).start()
+    await idle()
+
+if __name__ == '__main__':
+    try:
+        loop.run_until_complete(start())
+    except KeyboardInterrupt:
+        logging.info('Service Stopped Bye 👋')

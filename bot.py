@@ -161,19 +161,19 @@ class AnujBot:
 self.db_manager.add_message(user_id, message_text, 'user')
 
 # Context-based responses
-if any(word in message_text.lower() for word in ['thanks', 'thank you', 'dhanyawad']):
+if any(word in message_text for word in ['thanks']):
     surprise_link = random.choice(self.surprise_links)
     response = f"🎉 **Welcome {user_name}!**\n\nYahan hai aapke liye ek surprise: {surprise_link}\n\n✨ Aur koi doubt hai? Puchte raho!"
     await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
 
-elif any(word in message_text.lower() for word in ['best wishes', 'shubhkamnayein']):
+elif any(word in message_text for word in ['best wishes']):
     response = random.choice(self.best_wishes_responses)
     await update.message.reply_text(response)
 
-elif any(word in message_text.lower() for word in ['notes', 'pdf']):
+elif any(word in message_text for word in ['notes']):
     await self.send_relevant_files(update, context, message_text)
 
-elif any(word in message_text.lower() for word in ['doubt', 'confusion', 'problem']):
+elif any(word in message_text for word in ['doubt']):
     response = (
         "🤔 **Doubt hai? Perfect!**\n\n"
         "📸 Image bhejo agar visual problem hai\n"
@@ -187,9 +187,6 @@ else:
     # General context understanding
     await self.handle_general_query(update, context, message_text)
 
-
-# ==========================
-# Inside handle_general_query method:
 
 async def handle_general_query(self, update: Update, context: ContextTypes.DEFAULT_TYPE, query: str):
     """Handle general queries with AI assistance"""
@@ -209,6 +206,7 @@ async def handle_general_query(self, update: Update, context: ContextTypes.DEFAU
     except Exception as e:
         logger.error(f"Error in AI response: {e}")
         await update.message.reply_text("🤖 **Anuj:** Samajh gaya! Koi specific doubt hai toh detail me batao. Main help karunga! 😊")
+
 
     async def get_ai_response(self, prompt: str) -> str:
         """Get AI response using OpenAI"""

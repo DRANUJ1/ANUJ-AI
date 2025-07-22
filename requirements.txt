@@ -2,7 +2,7 @@
 # Essential packages for bot functionality
 
 # Telegram Bot Framework
-python-telegram-bot==13.15
+python-telegram-bot==20.7
 
 # Database - MongoDB
 pymongo==4.6.0

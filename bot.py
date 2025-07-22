@@ -48,7 +48,7 @@ class AnujBot:
         BOT_TOKEN = os.environ.get("BOT_TOKEN")
         OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
-    if not BOT_TOKEN or not OPENAI_API_KEY:
+    if not BOT_TOKEN or not OPENAI_API_KEY: 
         raise ValueError("BOT_TOKEN and OPENAI_API_KEY must be set in the environment.")
 
         bot = AnujBot(BOT_TOKEN, OPENAI_API_KEY)

@@ -44,9 +44,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class AnujBot:
-    def __init__(self, bot_token: str, openai_api_key: str):
-        # Initialize API clients and managers
-        self.openai_client = OpenAI(api_key=openai_api_key)
+        # Get tokens from environment variables
+        BOT_TOKEN = os.environ.get("BOT_TOKEN")
+        OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+
+    if not BOT_TOKEN or not OPENAI_API_KEY:
+        raise ValueError("BOT_TOKEN and OPENAI_API_KEY must be set in the environment.")
+
+        bot = AnujBot(BOT_TOKEN, OPENAI_API_KEY)
         
         # Initialize custom modules
         # Naya aur sudhara hua code

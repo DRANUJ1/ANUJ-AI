@@ -38,10 +38,11 @@ from utils.context_manager import ContextManager
 
 # Configure logging
 logging.basicConfig(
-    format=\'%(asctime)s - %(name)s - %(levelname)s - %(message)s\',
+    format='\%(asctime)s - %(name)s - %(levelname)s - %(message)s\',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
 
 class AnujBot:
     def __init__(self):
@@ -54,7 +55,7 @@ class AnujBot:
         self.image_solver = ImageSolver()
         self.context_manager = ContextManager()
         self.openai_client = OpenAI()
-        
+       
         # Bot personality responses
         self.surprise_links = [
             "🎉 https://youtu.be/dQw4w9WgXcQ",

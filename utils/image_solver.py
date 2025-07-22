@@ -159,7 +159,7 @@ class ImageSolver:
         try:
             # Method 2: Tesseract (primary or fallback if EasyOCR not available)
             pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-            tesseract_text = pytesseract.image_to_string(pil_image, lang=\'eng+hin\')
+            tesseract_text = pytesseract.image_to_string(pil_image, lang="eng+hin")
             
             if tesseract_text.strip():
                 extracted_text = tesseract_text

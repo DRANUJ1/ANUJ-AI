@@ -470,5 +470,4 @@ def main():
     logger.info("Bot is starting to poll for updates...")
     application.run_polling()
 
-if __name__ == "__main__":
-    asyncio.run(start_web())
+

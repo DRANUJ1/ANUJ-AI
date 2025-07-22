@@ -158,47 +158,57 @@ class AnujBot:
         message_text = update.message.text.lower()
         
         # Store message in user history
-        self.db_manager.add_message(user_id, message_text, \\\\\\\'user\\\\\\\
-        
-        # Context-based responses
-        if any(word in message_text for word in [\\\\\\\'thanks\\\\\\\
-            surprise_link = random.choice(self.surprise_links)
-            response = f"🎉 **Welcome {user_name}!** \\\\\\\\n\\\\\\\\nYahan hai aapke liye ek surprise: {surprise_link}\\\\\\n\\\\\\\\n✨ Aur koi doubt hai? Puchte raho!"
-            await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
-            
-        elif any(word in message_text for word in [\\\\\\\'best wishes\\\\\\\
-            response = random.choice(self.best_wishes_responses)
-            await update.message.reply_text(response)
-            
-        elif any(word in message_text for word in [\\\\\\\'notes\\\\\\\
-            await self.send_relevant_files(update, context, message_text)
-            
-        elif any(word in message_text for word in [\\\\\\\'doubt\\\\\\\
-            response = "🤔 **Doubt hai? Perfect!**\\\\\\\\n\\\\\\\\n📸 Image bhejo agar visual problem hai\\\\\\\\n📝 Text me likho agar theory doubt hai\\\\\\\\n📚 PDF bhejo agar quiz chahiye\\\\\\\\n\\\\\\\\n**Aur doubts pucho, suffering karte rahne se kya fayda! 😊**"
-            await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
-            
-        else:
-            # General context understanding
-            await self.handle_general_query(update, context, message_text)
+self.db_manager.add_message(user_id, message_text, 'user')
 
-    async def handle_general_query(self, update: Update, context: ContextTypes.DEFAULT_TYPE, query: str):
-        """Handle general queries with AI assistance"""
-        user_id = update.effective_user.id
-        
-        # Get user context
-        user_history = self.db_manager.get_user_history(user_id, limit=5)
-        context_prompt = f"User history: {user_history}\\\\\\n\\\\\\\\nCurrent query: {query}"
-        
-        try:
-            response = await self.get_ai_response(context_prompt)
-            await update.message.reply_text(f"🤖 **Anuj:** {response}")
-            
-            # Store bot response
-            self.db_manager.add_message(user_id, response, \\\\\\\'bot\\\\\\\
-            
-        except Exception as e:
-            logger.error(f"Error in AI response: {e}")
-            await update.message.reply_text("🤖 **Anuj:** Samajh gaya! Koi specific doubt hai toh detail me batao. Main help karunga! 😊")
+# Context-based responses
+if any(word in message_text.lower() for word in ['thanks', 'thank you', 'dhanyawad']):
+    surprise_link = random.choice(self.surprise_links)
+    response = f"🎉 **Welcome {user_name}!**\n\nYahan hai aapke liye ek surprise: {surprise_link}\n\n✨ Aur koi doubt hai? Puchte raho!"
+    await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
+
+elif any(word in message_text.lower() for word in ['best wishes', 'shubhkamnayein']):
+    response = random.choice(self.best_wishes_responses)
+    await update.message.reply_text(response)
+
+elif any(word in message_text.lower() for word in ['notes', 'pdf']):
+    await self.send_relevant_files(update, context, message_text)
+
+elif any(word in message_text.lower() for word in ['doubt', 'confusion', 'problem']):
+    response = (
+        "🤔 **Doubt hai? Perfect!**\n\n"
+        "📸 Image bhejo agar visual problem hai\n"
+        "📝 Text me likho agar theory doubt hai\n"
+        "📚 PDF bhejo agar quiz chahiye\n\n"
+        "**Aur doubts pucho, suffering karte rahne se kya fayda! 😊**"
+    )
+    await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
+
+else:
+    # General context understanding
+    await self.handle_general_query(update, context, message_text)
+
+
+# ==========================
+# Inside handle_general_query method:
+
+async def handle_general_query(self, update: Update, context: ContextTypes.DEFAULT_TYPE, query: str):
+    """Handle general queries with AI assistance"""
+    user_id = update.effective_user.id
+
+    # Get user context
+    user_history = self.db_manager.get_user_history(user_id, limit=5)
+    context_prompt = f"User history: {user_history}\n\nCurrent query: {query}"
+
+    try:
+        response = await self.get_ai_response(context_prompt)
+        await update.message.reply_text(f"🤖 **Anuj:** {response}")
+
+        # Store bot response
+        self.db_manager.add_message(user_id, response, 'bot')
+
+    except Exception as e:
+        logger.error(f"Error in AI response: {e}")
+        await update.message.reply_text("🤖 **Anuj:** Samajh gaya! Koi specific doubt hai toh detail me batao. Main help karunga! 😊")
 
     async def get_ai_response(self, prompt: str) -> str:
         """Get AI response using OpenAI"""

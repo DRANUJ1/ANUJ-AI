@@ -422,7 +422,7 @@ if __name__ == "__main__":
     application.run_polling()
 
         def set_webhook(self, webhook_url: str) -> bool:
-        """Set webhook URL for the bot"""
+        # your logic here
         try:
             import requests
             url = f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook"

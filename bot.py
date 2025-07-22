@@ -20,7 +20,7 @@ import requests
 from telegram import Update, InputFile
 from telegram.ext import(
     Application, CommandHandler, MessageHandler, filters, 
-    ContextTypes, Dispatcher
+    ContextTypes
 )
 from telegram.constants import ParseMode
 from openai import OpenAI
@@ -479,9 +479,6 @@ def main():
         # Initialize bot and flask app
         self.bot = Bot(token=self.TOKEN)
         self.app = Flask(__name__)
-
-        # Dispatcher to handle updates
-        self.dispatcher = Dispatcher(self.bot, None, workers=4, use_context=True)
 
         # Set Telegram command/message handlers
         self._add_handlers()

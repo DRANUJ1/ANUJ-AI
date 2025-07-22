@@ -421,4 +421,80 @@ if __name__ == "__main__":
     logger.info("Bot is now polling for updates...")
     application.run_polling()
 
+        def set_webhook(self, webhook_url: str) -> bool:
+        """Set webhook URL for the bot"""
+        try:
+            import requests
+            url = f"https://api.telegram.org/bot{BOT_TOKEN}/setWebhook"
+            data = {
+                'url': webhook_url + '/webhook',
+                'allowed_updates': ['message', 'callback_query']
+            }
+            response = requests.post(url, data=data )
+            result = response.json()
+            
+            if result.get('ok'):
+                logger.info(f"Webhook set successfully to {webhook_url}")
+                return True
+            else:
+                logger.error(f"Failed to set webhook: {result}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error setting webhook: {e}")
+            return False
+    
+    def get_webhook_info(self) -> dict:
+        """Get current webhook information"""
+        try:
+            import requests
+            url = f"https://api.telegram.org/bot{BOT_TOKEN}/getWebhookInfo"
+            response = requests.get(url )
+            result = response.json()
+            
+            if result.get('ok'):
+                return result.get('result', {})
+            else:
+                logger.error(f"Failed to get webhook info: {result}")
+                return {}
+                
+        except Exception as e:
+            logger.error(f"Error getting webhook info: {e}")
+            return {}
+    
+    def delete_webhook(self) -> bool:
+        """Delete webhook (switch back to polling)"""
+        try:
+            import requests
+            url = f"https://api.telegram.org/bot{BOT_TOKEN}/deleteWebhook"
+            response = requests.post(url )
+            result = response.json()
+            
+            if result.get('ok'):
+                logger.info("Webhook deleted successfully")
+                return True
+            else:
+                logger.error(f"Failed to delete webhook: {result}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error deleting webhook: {e}")
+            return False
+    
+    async def process_webhook_update(self, update_data: dict):
+        """Process webhook update from Telegram"""
+        try:
+            # Create Update object from webhook data
+            from telegram import Update
+            update = Update.de_json(update_data, self.application.bot)
+            
+            if update:
+                # Process the update through the application
+                await self.application.process_update(update)
+            else:
+                logger.warning("Failed to create Update object from webhook data")
+                
+        except Exception as e:
+            logger.error(f"Error processing webhook update: {e}")
+
 

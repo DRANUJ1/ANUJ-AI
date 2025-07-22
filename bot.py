@@ -18,7 +18,7 @@ from telegram import Bot, Update
 # Third-party libraries
 import requests
 from telegram import Update, InputFile
-from telegram.ext import (
+from telegram.ext import(
     Application, CommandHandler, MessageHandler, filters, 
     ContextTypes, Dispatcher
 )

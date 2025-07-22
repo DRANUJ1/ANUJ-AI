@@ -36,6 +36,10 @@ MAX_IMAGE_SIZE = (1920, 1080)
 SOLUTION_FONT_SIZE = 24
 SOLUTION_COLOR = (255, 0, 0)  # Red color for solutions
 
+# Webhook Configuration (for Render deployment)
+WEBHOOK_URL = os.getenv('WEBHOOK_URL', '')  # Set this to your Render app URL
+
+
 # Memory Configuration
 MAX_HISTORY_MESSAGES = int(os.getenv('MAX_HISTORY_MESSAGES', '100'))
 CONTEXT_WINDOW_SIZE = int(os.getenv('CONTEXT_WINDOW_SIZE', '10'))

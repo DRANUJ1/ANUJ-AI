@@ -46,11 +46,13 @@ class AnujBot:
         self.openai_client = OpenAI(api_key=openai_api_key)
         
         # Initialize custom modules
-        self.db_manager = DatabaseManager(db_path=DATABASE_PATH if not USE_MONGODB else MONGODB_CONNECTION_STRING, use_mongodb=USE_MONGODB)
+        # Naya aur sudhara hua code
+        self.db_manager = DatabaseManager(database_path=DATABASE_PATH if not USE_MONGODB else MONGODB_CONNECTION_STRING, use_mongodb=USE_MONGODB)
         self.image_solver = ImageSolver()
         self.context_manager = ContextManager()
         self.file_manager = FileManager()
         self.quiz_generator = QuizGenerator()
+
         
         # This will be set after the Application object is created
         self.application: Optional[Application] = None

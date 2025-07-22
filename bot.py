@@ -12,8 +12,6 @@ import random
 from datetime import datetime
 from typing import Dict
 from aiohttp import web
-from plugins import web_server
-from plugins.clone import restart_bots
 
 
 # Third-party libraries
@@ -471,14 +469,6 @@ def main():
 
     logger.info("Bot is starting to poll for updates...")
     application.run_polling()
-
-async def start_web():
-    app = web.AppRunner(web_server())
-    await app.setup()
-    bind_address = "0.0.0.0"
-    site = web.TCPSite(app, bind_address, PORT)
-    await site.start()
-    await idle()
 
 if __name__ == "__main__":
     asyncio.run(start_web())
